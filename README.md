@@ -37,3 +37,10 @@ While you are no longer limited to a maximum number of elements per day (EPD), t
 - 0–100,000 -> 0.005 USD per each (5.00 USD per 1000)
 - 100,001–500,000 -> 0.004 USD per each (4.00 USD per 1000)
 - 500,000+ -> Contact Sales for volume pricing
+
+
+## Running the Frontend
+ - Make docker scripts executable: `cd ./simplistic-tsp-implementation && sudo chmod +x ./docker_*`
+ - Build docker image: `./docker_build.sh`
+ - Run the docker container: `./docker_start_container.sh`
+
