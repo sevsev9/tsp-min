@@ -2,6 +2,8 @@
 A simplistic Travelling Sales Person implementation based on a custom-made Dataset.  
  - made by: [Severin Mairinger](https://www.github.com/sevsev9)
 
+Side Note: This project was written in another private repository of mine. Should you, for any reason, want the commit history please ask me.
+
 ## Technologies Used
 ### NodeJS
 Used to interface with the Google Maps API to acquire the following information:
