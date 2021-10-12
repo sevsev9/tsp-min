@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simplistic TSP Implementation</title>
+    <script src="js/data.js" type="text/javascript"></script>
+    <script src="js/constants.js" type="text/javascript"></script>
+    <script src="js/globals.js" type="text/javascript"></script>
+    <script src="js/formatter.js" type="text/javascript"></script>
+    <script src="js/canvasDisplay.js" type="text/javascript"></script>
+    <script src="js/matrixDisplay.js" type="text/javascript"></script>
+    <script src="js/index.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h1 style="text-align: center; color: whitesmoke">TSP Problem Implementation with Austrian Dataset</h1>
+<div style="width: 100%">
+    <table id="dataview">
+        <thead>
+        <tr>
+            <th>From - City</th>
+            <th>To - City</th>
+            <th>Linear Distance (km)</th>
+            <th>Driving Distance (km)</th>
+            <th>Typical Drive Time</th>
+            <th>Origin Address</th>
+            <th>Destination Address</th>
+        </tr>
+        </thead>
+        <tbody>
+
+        </tbody>
+    </table>
+</div>
+
+<div class="matrix-select">
+    <div>
+        <button class="select-button" onclick="selectDataPointDisplay('avg_drive_time', formatTime)" id="dtbtn">Drive
+            Time
+        </button>
+        <button class="select-button" onclick="selectDataPointDisplay('linear_distance', formatKilometers)" id="ldbtn">
+            Linear Distance
+        </button>
+        <button class="select-button" onclick="selectDataPointDisplay('driven_distance', formatMeters)" id="ddbtn">
+            Driving
+            Distance
+        </button>
+        <button class="select-button" onclick="showAbout()">Show About
+            <!-- @Todo:
+                Implement a weighing slider where the user can set the distance vs. drive time weight.
+                The program will then an artificial route cost from which it will then determine the best route.
+                Algorithm to be chosen.
+            -->
+        </button>
+    </div>
+</div>
+<div id="matrix">
+    <table>
+        <thead>
+        <tr>
+
+        </tr>
+        </thead>
+        <tbody>
+
+        </tbody>
+    </table>
+</div>
+<hr>
+<h2 style="color: wheat; width: 100%; text-align: center">Visualization & Calculation</h2>
+<div id="map">
+    <canvas style="position: absolute; top: 0; z-index: 1">
+        <!-- Draw canvas for data points -->
+    </canvas>
+    <canvas style="position: absolute; top: 0; background: transparent; z-index: 10" id="calcCanvas">
+        <!-- Line Draw overlay for calculation -->
+    </canvas>
+    <canvas style="position: absolute; top: 0; background: transparent; z-index: 11" id="worstSolCanvas">
+        <!-- Line Draw overlay for worst Solution -->
+    </canvas>
+    <canvas style="position: absolute; top: 0; background: transparent; z-index: 12" id="bestSolCanvas">
+        <!-- Line Draw overlay for best Solution -->
+    </canvas>
+</div>
+<div class="solutions" style="opacity: 0; display: none">
+    <div>
+        <div id="bestSol">
+            <p></p>
+            <div>
+                <ol>
+
+                </ol>
+            </div>
+        </div>
+        <div id="worstSol">
+            <p></p>
+            <div>
+                <ol>
+
+                </ol>
+            </div>
+        </div>
+        <div class="worker-buttons">
+            <button onclick="toggleSolutions()" style="color: white">Close</button>
+        </div>
+        <div class="time-taken">
+            <p>Time Taken for calculation: </p>
+            <p id="timeTaken"></p>
+        </div>
+    </div>
+</div>
+<div class="switches">
+    <div class="switch-wrapper">
+        <div>
+            <div>
+                <p>Calculation Drawing <br>(drastically reduces speed):</p>
+                <label class="switch">
+                    <input type="checkbox" onchange="setFancyFlag()" id="fancyFlag">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div>
+                <p>Best Solution:</p>
+                <label class="switch">
+                    <input type="checkbox" id="showBestSol">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div>
+                <p>Worst Solution:</p>
+                <label class="switch">
+                    <input type="checkbox" id="showWorstSol">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div>
+                <p>Points:</p>
+                <label class="switch">
+                    <input type="checkbox" id="showPoints">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div>
+                <p>Show Matrix:</p>
+                <label class="switch">
+                    <input type="checkbox" id="showMatrix">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div>
+                <p>Show Table:</p>
+                <label class="switch">
+                    <input type="checkbox" id="showTable">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div>
+                <p>Add return-to-start distance:</p>
+                <label class="switch">
+                    <input type="checkbox" id="addRTS">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div>
+                <p>Origin City:</p>
+                <label class="switch">
+                    <input type="checkbox" id="showOriginCity">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="worker-buttons">
+            <button onclick="startBruteForceWorker()" id="startButton">Start Brute Force</button>
+            <button onclick="stopBruteForceWorker()" class="break">Stop Brute Force</button>
+            <button onclick="clearCanvas()" class="break">Clear Canvas</button>
+            <button onclick="toggleSolutions()" class="break">Show Solutions</button>
+
+            <label style="display: inline-block; padding: 2em">
+                Select City:
+                <select name="city" id="citySelect">
+
+                </select>
+            </label>
+        </div>
+
+        <div class="legend">
+            <div>
+                <div style="border-left: 1.5em solid green;">
+                    <p>Green Paths: </p>
+                    <p>Represent the (currently known) best solution.</p>
+                </div>
+                <div style="border-left: 1.5em solid red;">
+                    <p>Red Paths: </p>
+                    <p>Represent the worst (currently known) solution.</p>
+                </div>
+                <div style="border-left: 1.5em solid blue;">
+                    <p>Blue Paths: </p>
+                    <p>Represent the return path of the (currently known) best solution.</p>
+                </div>
+
+                <div style="border-left: 1.5em solid orange;">
+                    <p>Orange Paths: </p>
+                    <p>Represent the return path of the worst (currently known) solution.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="about">
+        <ul>
+            <li><p>Made by: <a href="https://www.github.com/sevsev9">Severin Mairinger</a></p></li>
+            <li><p>Technologies used:</p>
+                <p>Frontend:</p>
+                <ol>
+                    <li>HTML</li>
+                    <li>CSS</li>
+                    <li>Plain JS</li>
+                </ol>
+                <p>Backend:</p>
+                <ol>
+                    <li>NodeJS</li>
+                    <li>Axios Library for https requests to Google Distance Matrix API</li>
+                    <li>Dotenv for securely storing the Google API keys</li>
+                    <li>Google Distance Matrix API</li>
+                </ol>
+            </li>
+            <li><p>Time taken: ~20h (Dataset code ~3h + Frontend ~7h)</p></li>
+            <li><p>Lines of code (written): ~2000 (Dataset code ~300 + Frontend ~1700)</p></li>
+            <li>
+                <p>I made this project (frontend part) from scrap and is therefore solely my own work and is based on no
+                    other project or libraries except for the following:</p>
+                <ul>
+                    <li><a href="https://stackoverflow.com/a/11486026/6604668">Fancy time formatting function.</a></li>
+                    <li><a href="https://www.arduino.cc/reference/en/language/functions/math/map/">Mathematical map
+                        function translated from C to javascript.</a></li>
+                    <li><a href="https://www.nayuki.io/page/next-lexicographical-permutation-algorithm">Calculation
+                        algorithm for all unique permutations of an array.</a></li>
+                    <li><a href="https://freefrontend.com/css-tables/">Table css styling.</a></li>
+                    <li><a href="https://www.flaticon.com" title="Freepik">Website Icon</a></li>
+                </ul>
+            </li>
+            <li><p>For proof please ask me, and I can provide you the commit history of the private git repository I
+                have worked in.</p></li>
+            <li><p>The dataset used in this example has been compiled by a nodejs program I wrote solely for this
+                project which combines navigation information from "Google Distance Matrix API" and the lat/long
+                coordinates of cities, and from that calculated linear distances.</p></li>
+            <li><p>Please consider the small time-window and me not using libraries for this project when judging the
+                CSS and responsiveness of this page ;)</p></li>
+        </ul>
+
+
+        <div class="worker-buttons">
+            <button onclick="hideAbout()" style="color: white">Close</button>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+  setupDependencies();
+
+  window.onresize = () => {
+    // @Todo: reset canvas width and height.
+    // @Todo: Redraw canvas (if the height and width are changed the canvas is deleted.)
+  }
+</script>
+</body>
+</html>
