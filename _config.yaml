@@ -1,0 +1,3 @@
+theme: jekyll-theme-minimal
+title: min-tsp
+description: A simplistic tsp example implemented in plain javascript.
