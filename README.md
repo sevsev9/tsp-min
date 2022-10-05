@@ -1,6 +1,6 @@
 # Simplistic TSP implementation
 A simplistic Travelling Sales Person implementation based on a custom-made Dataset.  
- - made by: [Severin Mairinger](https://www.github.com/sevsev9)
+ - made by: [sevsev9](https://www.github.com/sevsev9)
 
 Side Note: This project was written in another private repository of mine. Should you, for any reason, want the commit history please ask me.
 
