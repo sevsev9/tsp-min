@@ -1,101 +1,146 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
-    <q-header elevated class="glossy">
-      <q-toolbar>
-        <q-btn
-          flat
-          dense
-          round
-          @click="leftDrawerOpen = !leftDrawerOpen"
-          aria-label="Menu"
-          icon="menu"
-        />
+  <div class="main-container">
+    <map-component class="map"></map-component>
+    <div class="location_selector">
+      <!-- 
+        This section contains a menu to select the target cities that are to be included in the tsp problem calculation.
+      
+        - Every city, once selected, is represented by a red dot on the map.
+      -->
 
-        <q-toolbar-title>
-          Quasar App
-        </q-toolbar-title>
+      <q-select :options="city_options" multiple use-chips filled placeholder="Select cities"
+        @update:model-value="updateCities" @filter="filterFn" v-model="selected_model" use-input>
+        <template v-slot:option="scope">
+          <q-item v-bind="scope.itemProps">
+            <q-item-section avatar>
+              <q-avatar>
+                <q-icon name="place" />
+                <q-item-label caption>{{ scope.opt.value.iso2 }}</q-item-label>
+              </q-avatar>
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>{{ scope.opt.label + ` (${scope.opt.value.admin_name})` }}</q-item-label>
+              <q-item-label caption>{{ scope.opt.value.lat + " | " + scope.opt.value.lng }}</q-item-label>
+            </q-item-section>
+          </q-item>
+        </template>
+      </q-select>
 
-        <div>Quasar v{{ $q.version }}</div>
-      </q-toolbar>
-    </q-header>
-
-    <q-drawer
-      v-model="leftDrawerOpen"
-      show-if-above
-      bordered
-      class="bg-grey-2"
-    >
-      <q-list>
-        <q-item-label header>Essential Links</q-item-label>
-        <q-item clickable tag="a" target="_blank" href="https://quasar.dev">
-          <q-item-section avatar>
-            <q-icon name="school" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Docs</q-item-label>
-            <q-item-label caption>quasar.dev</q-item-label>
-          </q-item-section>
-        </q-item>
-        <q-item clickable tag="a" target="_blank" href="https://github.com/quasarframework/">
-          <q-item-section avatar>
-            <q-icon name="code" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Github</q-item-label>
-            <q-item-label caption>github.com/quasarframework</q-item-label>
-          </q-item-section>
-        </q-item>
-        <q-item clickable tag="a" target="_blank" href="https://chat.quasar.dev">
-          <q-item-section avatar>
-            <q-icon name="chat" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Discord Chat Channel</q-item-label>
-            <q-item-label caption>chat.quasar.dev</q-item-label>
-          </q-item-section>
-        </q-item>
-        <q-item clickable tag="a" target="_blank" href="https://forum.quasar.dev">
-          <q-item-section avatar>
-            <q-icon name="forum" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Forum</q-item-label>
-            <q-item-label caption>forum.quasar.dev</q-item-label>
-          </q-item-section>
-        </q-item>
-        <q-item clickable tag="a" target="_blank" href="https://twitter.com/quasarframework">
-          <q-item-section avatar>
-            <q-icon name="rss_feed" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Twitter</q-item-label>
-            <q-item-label caption>@quasarframework</q-item-label>
-          </q-item-section>
-        </q-item>
-      </q-list>
-    </q-drawer>
-
-    <q-page-container>
-      <HelloWorld />
-    </q-page-container>
-  </q-layout>
+    </div>
+    <div class="toolbar"></div>
+  </div>
 </template>
 
 <script>
-import { ref } from 'vue'
-import HelloWorld from './components/HelloWorld.vue'
+import MapComponent from './components/map.component.vue';
+import { useMapStore } from "./store";
+import { ref } from "vue";
+import { Vector as SourceVector } from "ol/source";
+import { Vector as LayerVector } from "ol/layer";
+import { Style, Circle, Fill } from "ol/style";
+import { Point } from "ol/geom";
+import Feature from 'ol/Feature';
 
 export default {
-  name: 'LayoutDefault',
+  components: { MapComponent },
+  name: 'App',
+  data() {
+    const store = useMapStore();
+    const selected_model = ref([]);
+    const city_options = ref(...store.city_options);
 
-  components: {
-    HelloWorld
-  },
-
-  setup () {
     return {
-      leftDrawerOpen: ref(false)
+      store,
+      selected_model,
+      city_options,
+      filterFn(val, update) {
+        if (val === '') {
+          update(() => {
+            city_options.value = [...store.city_options];
+          });
+
+          return;
+        }
+
+        update(() => {
+          const needle = val.toLowerCase()
+          city_options.value = [...store.city_options].filter(v => {
+            return v.label.toLowerCase().indexOf(needle) > -1 || v.value.admin_name.toLowerCase().indexOf(needle) > -1
+          })
+        })
+      }
     }
+  },
+  methods: {
+    updateCities(event) {
+      this.store.map.removeLayer(this.store.point_layer);
+
+      const point_layer = new LayerVector({
+        target: "point_layer",
+        source: new SourceVector(),
+        style: new Style({
+          image: new Circle({
+            radius: 5,
+            fill: new Fill({
+              color: "red"
+            })
+          })
+        })
+      });
+
+      for (let i = 0; i < event.length; i++) {
+        const point = new Point([event[i].value.lng, event[i].value.lat]);
+        const feature = new Feature(point);
+        point_layer.getSource().addFeature(feature);
+      }
+
+      this.store.point_layer = point_layer;
+
+      this.store.map.addLayer(this.store.point_layer);
+
+      this.adjust_map_zoom();
+
+      console.log('update', event);
+    },
+    adjust_map_zoom() {
+      this.store.map.getView().fit(this.store.point_layer.getSource().getExtent(), {
+        size: this.store.map.getSize(),
+        maxZoom: 16
+      });
+    }
+  },
+  async mounted() {
+    await this.store.fetchCities(this.$q.notify);
+    this.city_options = [...this.store.city_options];
   }
 }
 </script>
+
+<style lang="scss" scoped>
+.main-container {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  grid-template-columns: 8fr 2fr;
+  grid-template-areas:
+    "map location_selector"
+    "map toolbar";
+}
+
+.map {
+  grid-area: map;
+}
+
+.location_selector {
+  grid-area: location_selector;
+  padding: 1em;
+  border-bottom: 2px solid grey;
+}
+
+.toolbar {
+  grid-area: toolbar;
+}
+</style>
