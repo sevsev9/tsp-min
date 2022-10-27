@@ -36,6 +36,9 @@ export const useMapStore = defineStore("mapstore", {
        *   -> from city, to city, distance_direct (km), distance_driven (km), avg_duration (h m s)
        */
     ],
+    /**
+     * @param { import("ol").Map }
+     */
     map: null,
     point_layer: null,
     route_layer: null,
@@ -43,8 +46,8 @@ export const useMapStore = defineStore("mapstore", {
     // Selected Style
     selectedStyle: new Style({
       stroke: new Stroke({
-        width: 3,
-        color: "blue",
+        width: 7,
+        color: "red",
       }),
       fill: new Fill(),
     }),
@@ -54,14 +57,13 @@ export const useMapStore = defineStore("mapstore", {
       stroke: new Stroke({
         width: 3,
         color: "blue",
-        // lineDash: [0.5, 4],
         // lineCap: 'round',
         // lineJoin: 'round',
       }),
       // fill: new ol.style.Fill()
     }),
 
-    onSelect: null,
+    onClickHandler: null,
   }),
   getters: {
     selected_city: (state) => state._selected_city,

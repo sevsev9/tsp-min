@@ -44,7 +44,9 @@
       -->
 
       <!-- This button calculates all routes between each city in the model list. -->
-      <q-btn :label="`Calculate ${current_routes.length > 0 ? current_routes.length : ''} Route${(current_routes.length === 1) ? '' : 's'}`" icon="route" color="primary" @click="calculateRoutes" style="margin: auto" />
+      <q-btn
+        :label="`Calculate ${current_routes.length > 0 ? current_routes.length : ''} Route${(current_routes.length === 1) ? '' : 's'}`"
+        icon="route" color="primary" @click="calculateRoutes" style="margin: auto" />
 
       <!-- Loading Dialog for route fetching from server -->
 
@@ -91,8 +93,6 @@ import MapComponent from './components/map.component.vue';
 import { useMapStore } from "./store";
 import { computed, ref } from "vue";
 import { useRouteStore } from "./store/route.store";
-import { click } from 'ol/events/condition';
-import Select from "ol/interaction/Select";
 
 export default {
   components: { MapComponent },
@@ -181,15 +181,41 @@ export default {
     await this.store.fetchCities(this.$q.notify);
     this.city_options = [...this.store.city_options];
 
-    if (!this.store.onSelect) {
-      this.store.onSelect = new Select({
-        condition: click
-      });
+    if (!this.store.onClickHandler) {
+      this.store.onClickHandler = (e) => {
 
-      this.store.onSelect.on('select', (e) => {
-        console.log(e);
-      });
+        // get an array of features that are at the clicked pixel.
+        const feature = this.store.map.getFeaturesAtPixel(e.pixel);
+
+        /*
+         * @TODO solve multiple problems here:
+         *  - What to do when to click multiple routes?
+         *  - Iterate through routes on multiple click? Show menu? ...
+         *  - For now: always use the first element in the array...
+         *  - If city is clicked, highlight all routes connected to this city?
+         */
+        if (feature.length > 0) {
+          const f = feature[0];
+
+          // check if the feature is a route
+          if (f.get('route')) {
+            if (!f.get("selected")) {
+              f.set("selected", true);
+              f.setStyle(this.store.selectedStyle);
+            } else {
+              f.setStyle(this.store.routeStyle);
+              f.set("selected", false);
+            }
+          } else {
+            console.log('city handling coming soon...', f.get('city'));
+          }
+        }
+      }
+    } else {
+      this.store.map.un("click", this.store.onClickHandler);
     }
+
+    this.store.map.on("click", this.store.onClickHandler);
   }
 }
 </script>
