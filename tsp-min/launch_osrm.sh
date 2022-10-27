@@ -1,1 +1,1 @@
-docker run -p 9966:9966 osrm/osrm-frontend
+docker run -t -i --name osrm-server -d -p 5000:5000 -v "${PWD}/osm:/data" osrm/osrm-backend osrm-routed --algorithm mld /data/austria-latest.osrm
