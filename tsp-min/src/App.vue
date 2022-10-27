@@ -6,6 +6,11 @@
         This section contains a menu to select the target cities that are to be included in the tsp problem calculation.
       
         - Every city, once selected, is represented by a red dot on the map.
+
+        - On rendered route selection:
+          -> Highlight the route on OSM
+          -> Show route details under the select
+          -> Show a list of available cities from this route
       -->
 
       <q-select :options="city_options" multiple use-chips filled placeholder="Select cities"
@@ -27,32 +32,85 @@
       </q-select>
 
     </div>
-    <div class="toolbar"></div>
+    <div class="toolbar">
+      <!-- This section contains all the functionality for route calculation.
+        This includes:
+          - Search Algorithm Selection
+          - Route Calculation and length display
+          - Calculation State Display if the calculation is still running
+          - Reset Button
+          - Fastest Route Display
+          - Live Calculation Display
+      -->
+
+      <!-- This button calculates all routes between each city in the model list. -->
+      <q-btn label="Calculate Routes" icon="route" color="primary" @click="calculateRoutes" style="margin: auto" />
+
+      <!-- Loading Dialog for route fetching from server -->
+
+      <q-dialog v-model="loading.show" persistent style="width: 50vh; margin: auto; height: 20vh">
+        <q-card>
+          <q-bar>
+            <!-- 
+              Show elapsed time, and total processed, time estimaed and total to process.
+              
+              <q-icon name="network_wifi" />
+              <q-icon name="network_cell" />
+              <q-icon name="battery_full" />
+              <div>9:34</div>
+
+             -->
+
+            <q-space />
+
+            <q-btn dense flat icon="close" v-close-popup>
+              <q-tooltip>Close</q-tooltip>
+            </q-btn>
+          </q-bar>
+
+          <q-card-section>
+            <q-linear-progress size="50px" :value="loading.progress" color="accent" animation-speed="100">
+              <div class="absolute-full flex flex-center">
+                <q-badge color="white" text-color="accent" :label="loading.progress_label" />
+              </div>
+            </q-linear-progress>
+          </q-card-section>
+
+          <q-card-section class="q-pt-none">
+            <!-- display total progress and time estimation here -->
+            <div class="text-h6">Fetching Routes</div>
+          </q-card-section>
+        </q-card>
+      </q-dialog>
+    </div>
   </div>
 </template>
 
 <script>
 import MapComponent from './components/map.component.vue';
 import { useMapStore } from "./store";
-import { ref } from "vue";
-import { Vector as SourceVector } from "ol/source";
-import { Vector as LayerVector } from "ol/layer";
-import { Style, Circle, Fill } from "ol/style";
-import { Point } from "ol/geom";
-import Feature from 'ol/Feature';
+import { computed, ref } from "vue";
+import { useRouteStore } from "./store/route.store";
 
 export default {
   components: { MapComponent },
   name: 'App',
   data() {
     const store = useMapStore();
+    const routeStore = useRouteStore();
     const selected_model = ref([]);
-    const city_options = ref(...store.city_options);
+    const city_options = ref([...store.city_options]);
 
     return {
       store,
+      routeStore,
       selected_model,
       city_options,
+      loading: {
+        progress: ref(0),
+        show: ref(false),
+        progress_label: computed(() => `${(this.loading.progress * 100).toFixed(2)}%`),
+      },
       filterFn(val, update) {
         if (val === '') {
           update(() => {
@@ -72,41 +130,34 @@ export default {
     }
   },
   methods: {
-    updateCities(event) {
-      this.store.map.removeLayer(this.store.point_layer);
+    updateCities(cities) {
+      // send update with the cities to the store
 
-      const point_layer = new LayerVector({
-        target: "point_layer",
-        source: new SourceVector(),
-        style: new Style({
-          image: new Circle({
-            radius: 5,
-            fill: new Fill({
-              color: "red"
-            })
-          })
-        })
-      });
-
-      for (let i = 0; i < event.length; i++) {
-        const point = new Point([event[i].value.lng, event[i].value.lat]);
-        const feature = new Feature(point);
-        point_layer.getSource().addFeature(feature);
-      }
-
-      this.store.point_layer = point_layer;
-
-      this.store.map.addLayer(this.store.point_layer);
-
-      this.adjust_map_zoom();
-
-      console.log('update', event);
+      this.store.drawPoints(cities);
     },
-    adjust_map_zoom() {
-      this.store.map.getView().fit(this.store.point_layer.getSource().getExtent(), {
-        size: this.store.map.getSize(),
-        maxZoom: 16
-      });
+    async calculateRoutes() {
+      const routes = await this.routeStore.calculateRoutes(
+        this.selected_model.map(e => e.value),
+        this.$q,
+        (progress) => {
+          if (!this.loading.show)
+            this.loading.show = true;
+
+          // why tf does this work and not the other way around?
+          this.loading.progress = progress;
+        }
+      );
+
+      this.loading.show = false;
+
+      // render the calculated routes
+      console.log(routes);
+
+      this.store.drawRoutes(routes.map(e => e.route));
+    },
+    hideLoadingDialog() {
+      this.loading.show = false;
+      this.loading.progress = 0;
     }
   },
   async mounted() {
@@ -142,5 +193,6 @@ export default {
 
 .toolbar {
   grid-area: toolbar;
+  padding: 1em;
 }
 </style>

@@ -1,5 +1,16 @@
 import { defineStore } from "pinia";
 
+import VectorSource from "ol/source/Vector";
+import VectorLayer from "ol/layer/Vector";
+// eslint-disable-next-line
+import { Style, Circle, Fill, Icon, Stroke } from "ol/style";
+import { Point } from "ol/geom";
+import Feature from "ol/Feature";
+import GeoJSON from "ol/format/GeoJSON";
+
+const icon_url =
+  "https://cdn.rawgit.com/openlayers/ol3/master/examples/data/icon.png";
+
 export const useMapStore = defineStore("mapstore", {
   state: () => ({
     _selected_city: {
@@ -27,6 +38,28 @@ export const useMapStore = defineStore("mapstore", {
     ],
     map: null,
     point_layer: null,
+    route_layer: null,
+
+    // Selected Style
+    selectedStyle: new Style({
+      stroke: new Stroke({
+        width: 3,
+        color: "blue",
+      }),
+      fill: new Fill(),
+    }),
+
+    // default route style
+    routeStyle: new Style({
+      stroke: new Stroke({
+        width: 3,
+        color: "blue",
+        // lineDash: [0.5, 4],
+        // lineCap: 'round',
+        // lineJoin: 'round',
+      }),
+      // fill: new ol.style.Fill()
+    }),
   }),
   getters: {
     selected_city: (state) => state._selected_city,
@@ -102,6 +135,105 @@ export const useMapStore = defineStore("mapstore", {
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       const d = R * c; // Distance in km
       return d;
+    },
+
+    /**
+     * Draws a point for each given city on the map.
+     * @param cities An array of city options. ( {value: {city, lat, lng, ...}, label: city} )
+     */
+    drawPoints(cities) {
+      if (this.point_layer) {
+        this.map.removeLayer(this.point_layer);
+      }
+
+      this.point_layer = new VectorLayer({
+        target: "point_layer",
+        source: new VectorSource(),
+        style: new Style({
+          /* image: new Circle({
+            radius: 5,
+            fill: new Fill({
+              color: "red"
+            })
+          }) */
+          image: new Icon({
+            anchor: [0.5, 1],
+            src: icon_url,
+          }),
+        }),
+      });
+
+      for (let i = 0; i < cities.length; i++) {
+        const point = new Point([cities[i].value.lng, cities[i].value.lat]);
+        const feature = new Feature(point);
+        this.point_layer.getSource().addFeature(feature);
+      }
+
+      this.map.addLayer(this.point_layer);
+
+      this.adjust_map_zoom();
+    },
+
+    /**
+     * Adjusts the map zoom to include all points in displayed in the points_array.
+     */
+
+    adjust_map_zoom() {
+      this.map.getView().fit(this.point_layer.getSource().getExtent(), {
+        size: this.map.getSize(),
+        maxZoom: 16,
+      });
+    },
+
+    /**
+     * Creates a route feature.
+     * @param route
+     */
+    createRouteFeature(geometry) {
+      const rf = new GeoJSON().readFeature(geometry);
+      rf.setStyle(this.routeStyle);
+
+      return rf;
+    },
+
+    /**
+     * Adds a route to the map.
+     */
+    addRoute(route) {
+      const route_feature = this.createRouteFeature(route.geometry);
+
+      // remove old route layer
+      if (!this.route_layer) {
+        this.route_layer = new VectorLayer({
+          source: new VectorSource(),
+        });
+      } else {
+        this.map.removeLayer(this.route_layer);
+      }
+
+      this.route_layer.getSource().addFeature(route_feature);
+
+      this.map.addLayer(this.route_layer);
+    },
+
+    /**
+     * Draws all routes between all cities.
+     */
+    drawRoutes(routes) {
+      // remove old route layer
+      if (this.route_layer) {
+        this.map.removeLayer(this.route_layer);
+      }
+
+      this.route_layer = new VectorLayer({
+        source: new VectorSource(),
+      });
+
+      for (const route of routes) {
+        this.addRoute(route);
+      }
+
+      return routes;
     },
   },
 });

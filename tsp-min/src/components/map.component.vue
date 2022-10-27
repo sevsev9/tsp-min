@@ -49,7 +49,7 @@ export default {
                 center: [this.selected_city.lng, this.selected_city.lat],
                 constrainResolution: true
             }),
-        })
+        });
     },
     methods: {
 
