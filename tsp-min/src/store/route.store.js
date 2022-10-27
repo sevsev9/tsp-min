@@ -18,6 +18,8 @@ export const useRouteStore = defineStore("routeStore", {
      * @param updateProgress A function that is called to update the progress bar
      * @returns { Promise<Array<{ from: string, to: string, route: { distance_direct: number, duration: number, ... } }>> } A promise that resolves to an array of routes
      *
+     * @throws { Error } If the route could not be calculated
+     * @throws { Error } If the routing server is not reachable
      * @TODO implement cancelation of the loading process
      */
     async calculateRoutes(cities, $q, updateProgress) {
@@ -40,25 +42,10 @@ export const useRouteStore = defineStore("routeStore", {
       // calculate the amount of routes (triangular number) for the number of destinations
       const amountOfRoutes = (cities.length * (cities.length - 1)) / 2;
 
+      // check if the route yield is higher than recommended
       if (amountOfRoutes > 30) {
-        const proceed = await new Promise((resolve) => {
-          $q.dialog({
-            title: "Warning",
-            message: `This selection of destinations would yield ${amountOfRoutes}. Do you want to continue?`,
-            icon: "warning",
-            persistent: true,
-            ok: {
-              label: "Continue",
-              color: "warning",
-            },
-            cancel: {
-              label: "Cancel",
-              color: "negative",
-            },
-          })
-            .onOk(() => resolve(true))
-            .onCancel(() => resolve(false));
-        });
+        const $q = useQuasar();
+        const proceed = await this.dialogGuard(amountOfRoutes);
 
         if (!proceed) {
           $q.notify({
@@ -123,29 +110,54 @@ export const useRouteStore = defineStore("routeStore", {
     },
 
     /**
+     * This is a dialog guard to notify the user that the amount of routes he is about to calculate is very high.
+     *
+     * @returns {Promise<boolean>} Weather the user wants to continue or not
+     */
+    dialogGuard(amount) {
+      const $q = useQuasar();
+
+      return new Promise((resolve) => {
+        $q.dialog({
+          title: "Warning",
+          message: `This selection of destinations would yield ${amount}. Do you want to continue?`,
+          icon: "warning",
+          persistent: true,
+          ok: {
+            label: "Continue",
+            color: "warning",
+          },
+          cancel: {
+            label: "Cancel",
+            color: "negative",
+          },
+        })
+          .onOk(() => resolve(true))
+          .onCancel(() => resolve(false));
+      });
+    },
+
+    /**
      * This function calculates the route between two cities that can be displayed on a map.
      * @param {city, lat, lng, ...} from The origin city
      * @param {city, lat, lng, ...} to The destination city
+     *
+     * @returns {Promise<{distance: number, duration: number, geometry: import("ol/format/GeoJSON").GeoJSONObject, weight: number, weight_name: string}>} A promise that resolves to a route
      */
     async calculateRoute(from, to) {
-      try {
-        const res = await fetch(
-          `${this.SERVER}${this.ROUTE}${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson&steps=true`
-        ).then((res) => res.json());
+      const res = await fetch(
+        `${this.SERVER}${this.ROUTE}${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson&steps=true`
+      ).then((res) => res.json());
 
-        if (res.code === "Ok") {
-          return res.routes[0];
-        } else {
-          const $q = useQuasar();
-          $q.notify({
-            title: "Error",
-            message: res.message,
-            icon: "error",
-          });
-        }
-      } catch (e) {
-        console.error(e);
-        return null;
+      if (res.code === "Ok") {
+        return res.routes[0];
+      } else {
+        const $q = useQuasar();
+        $q.notify({
+          title: "Error",
+          message: res.message,
+          icon: "error",
+        });
       }
     },
   },
