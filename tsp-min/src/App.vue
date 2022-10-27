@@ -44,7 +44,7 @@
       -->
 
       <!-- This button calculates all routes between each city in the model list. -->
-      <q-btn label="Calculate Routes" icon="route" color="primary" @click="calculateRoutes" style="margin: auto" />
+      <q-btn :label="`Calculate ${current_routes.length > 0 ? current_routes.length : ''} Route${(current_routes.length === 1) ? '' : 's'}`" icon="route" color="primary" @click="calculateRoutes" style="margin: auto" />
 
       <!-- Loading Dialog for route fetching from server -->
 
@@ -113,6 +113,7 @@ export default {
         show: ref(false),
         progress_label: computed(() => `${(this.loading.progress * 100).toFixed(2)}%`),
       },
+      current_routes: [],
       filterFn(val, update) {
         if (val === '') {
           update(() => {
@@ -155,6 +156,9 @@ export default {
 
         // @debug
         console.log(routes);
+
+        // set current routes
+        this.current_routes = routes;
 
         // render the calculated routes
         this.store.drawRoutes(routes.map(e => e.route));

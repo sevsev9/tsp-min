@@ -44,8 +44,7 @@ export const useRouteStore = defineStore("routeStore", {
 
       // check if the route yield is higher than recommended
       if (amountOfRoutes > 30) {
-        const $q = useQuasar();
-        const proceed = await this.dialogGuard(amountOfRoutes);
+        const proceed = await this.dialogGuard($q, amountOfRoutes);
 
         if (!proceed) {
           $q.notify({
@@ -114,9 +113,7 @@ export const useRouteStore = defineStore("routeStore", {
      *
      * @returns {Promise<boolean>} Weather the user wants to continue or not
      */
-    dialogGuard(amount) {
-      const $q = useQuasar();
-
+    dialogGuard($q, amount) {
       return new Promise((resolve) => {
         $q.dialog({
           title: "Warning",
