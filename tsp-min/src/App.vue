@@ -91,6 +91,8 @@ import MapComponent from './components/map.component.vue';
 import { useMapStore } from "./store";
 import { computed, ref } from "vue";
 import { useRouteStore } from "./store/route.store";
+import { click } from 'ol/events/condition';
+import Select from "ol/interaction/Select";
 
 export default {
   components: { MapComponent },
@@ -136,24 +138,35 @@ export default {
       this.store.drawPoints(cities);
     },
     async calculateRoutes() {
-      const routes = await this.routeStore.calculateRoutes(
-        this.selected_model.map(e => e.value),
-        this.$q,
-        (progress) => {
-          if (!this.loading.show)
-            this.loading.show = true;
+      try {
+        const routes = await this.routeStore.calculateRoutes(
+          this.selected_model.map(e => e.value),
+          this.$q,
+          (progress) => {
+            if (!this.loading.show)
+              this.loading.show = true;
 
-          // why tf does this work and not the other way around?
-          this.loading.progress = progress;
-        }
-      );
+            // why tf does this work and not the other way around?
+            this.loading.progress = progress;
+          }
+        );
 
-      this.loading.show = false;
+        this.loading.show = false;
 
-      // render the calculated routes
-      console.log(routes);
+        // @debug
+        console.log(routes);
 
-      this.store.drawRoutes(routes.map(e => e.route));
+        // render the calculated routes
+        this.store.drawRoutes(routes.map(e => e.route));
+      } catch (e) {
+        this.loading.show = false;
+        this.$q.notify({
+          title: 'Error',
+          message: (e.message && e.message.length > 0) ? e.message : 'An error occured while calculating the routes.',
+          icon: "error",
+          position: "top"
+        });
+      }
     },
     hideLoadingDialog() {
       this.loading.show = false;
@@ -163,6 +176,16 @@ export default {
   async mounted() {
     await this.store.fetchCities(this.$q.notify);
     this.city_options = [...this.store.city_options];
+
+    if (!this.store.onSelect) {
+      this.store.onSelect = new Select({
+        condition: click
+      });
+
+      this.store.onSelect.on('select', (e) => {
+        console.log(e);
+      });
+    }
   }
 }
 </script>

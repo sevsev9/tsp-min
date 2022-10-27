@@ -60,6 +60,8 @@ export const useMapStore = defineStore("mapstore", {
       }),
       // fill: new ol.style.Fill()
     }),
+
+    onSelect: null,
   }),
   getters: {
     selected_city: (state) => state._selected_city,
@@ -166,6 +168,7 @@ export const useMapStore = defineStore("mapstore", {
       for (let i = 0; i < cities.length; i++) {
         const point = new Point([cities[i].value.lng, cities[i].value.lat]);
         const feature = new Feature(point);
+        feature.set('city', cities[i].value);
         this.point_layer.getSource().addFeature(feature);
       }
 
@@ -210,6 +213,8 @@ export const useMapStore = defineStore("mapstore", {
       } else {
         this.map.removeLayer(this.route_layer);
       }
+
+      route_feature.set('route', route);
 
       this.route_layer.getSource().addFeature(route_feature);
 
