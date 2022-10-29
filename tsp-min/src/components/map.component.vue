@@ -16,7 +16,7 @@ import OSM from 'ol/source/OSM'
 import 'ol/ol.css'
 import { useGeographic } from 'ol/proj'
 import { useMapStore } from '@/store'
-import { ATTRIBUTION } from 'ol/source/OSM';
+// import { ATTRIBUTION } from 'ol/source/OSM';
 
 useGeographic();
 
@@ -40,13 +40,14 @@ export default {
             layers: [
                 // adding a background tiled layer
                 new TileLayer({
-                    // source: new OSM() // tiles are served by OpenStreetMap
-                    source: new OSM({
-                        attributions: [
-                            ATTRIBUTION,
-                        ],
-                        url: "http://localhost:5001/tile/{z}/{x}/{y}.png",
-                    })
+                    preload: Infinity,
+                    source: new OSM() // tiles are served by OpenStreetMap
+                    // source: new OSM({
+                    //     attributions: [
+                    //         ATTRIBUTION,
+                    //     ],
+                    //     url: "http://localhost:5001/tile/{z}/{x}/{y}.png",
+                    // })
                 }),
             ],
 
