@@ -78,8 +78,8 @@ onmessage = function (e) {
 
             startTime = performance.now();
 
-            //Generate all unique permutations
-            let paths = Array.from(uniquePermutations(labels));   // Type: Array of path arrays ([[CityA, CityB, ...], [CityA, CityC, ...]]
+            // Generate all unique permutations
+            let paths = Array.from(uniquePermutations(  ));   // Type: Array of path arrays ([[CityA, CityB, ...], [CityA, CityC, ...]]
 
             if (originCity) { // If set: only calculates routes which start at the selected city
                 paths = paths.filter(v => v[0] === originCity);
@@ -87,7 +87,7 @@ onmessage = function (e) {
 
             paths = shuffle(paths);
 
-            //Find fastest path
+            // Find fastest path
             for (let i = 0; i < paths.length; i++) {
                 if (i % 1000 === 0) {
                     postMessage({
@@ -208,6 +208,6 @@ function* uniquePermutations(a) {
     const b = a.slice().sort();
 
     do {
-        yield b.slice();    // Pauses the function*
+        yield b.slice();    // Pauses the generator function
     } while (nextPermutation(b));
 }
