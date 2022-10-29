@@ -46,16 +46,16 @@ export const useMapStore = defineStore("mapstore", {
     // Selected Style
     selectedStyle: new Style({
       stroke: new Stroke({
-        width: 7,
+        width: 5,
         color: "red",
       }),
-      fill: new Fill(),
+      zIndex: 100,
     }),
 
     // default route style
     routeStyle: new Style({
       stroke: new Stroke({
-        width: 3,
+        width: 5,
         color: "blue",
         // lineCap: 'round',
         // lineJoin: 'round',
@@ -170,10 +170,11 @@ export const useMapStore = defineStore("mapstore", {
       for (let i = 0; i < cities.length; i++) {
         const point = new Point([cities[i].value.lng, cities[i].value.lat]);
         const feature = new Feature(point);
-        feature.set('city', cities[i].value);
+        feature.set("city", cities[i].value);
         this.point_layer.getSource().addFeature(feature);
       }
 
+      this.point_layer.setZIndex(2);
       this.map.addLayer(this.point_layer);
 
       this.adjust_map_zoom();
@@ -192,7 +193,7 @@ export const useMapStore = defineStore("mapstore", {
 
     /**
      * Creates a route feature.
-     * @param route
+     * @param geometry A GeoJSON geometry Object.
      */
     createRouteFeature(geometry) {
       const rf = new GeoJSON().readFeature(geometry);
@@ -203,20 +204,19 @@ export const useMapStore = defineStore("mapstore", {
 
     /**
      * Adds a route to the map.
+     * @param route {from: string, to: string, data: { lat, lng, geometry, ... } } a route object
      */
     addRoute(route) {
-      const route_feature = this.createRouteFeature(route.geometry);
+      const route_feature = this.createRouteFeature(route.data.geometry);
 
       // remove old route layer
       if (!this.route_layer) {
-        this.route_layer = new VectorLayer({
-          source: new VectorSource(),
-        });
+        this.route_layer = this.createRouteLayer();
       } else {
         this.map.removeLayer(this.route_layer);
       }
 
-      route_feature.set('route', route);
+      route_feature.set("route", route);
 
       this.route_layer.getSource().addFeature(route_feature);
 
@@ -225,6 +225,8 @@ export const useMapStore = defineStore("mapstore", {
 
     /**
      * Draws all routes between all cities.
+     * @param routes An array of routes.
+     * @returns { [{ ...route, feature: Feature }] } An array of all routes with features.
      */
     drawRoutes(routes) {
       // remove old route layer
@@ -232,9 +234,7 @@ export const useMapStore = defineStore("mapstore", {
         this.map.removeLayer(this.route_layer);
       }
 
-      this.route_layer = new VectorLayer({
-        source: new VectorSource(),
-      });
+      this.route_layer = this.createRouteLayer();
 
       for (const route of routes) {
         this.addRoute(route);
@@ -242,5 +242,20 @@ export const useMapStore = defineStore("mapstore", {
 
       return routes;
     },
+
+    /**
+     * Creates and returns a new route layer.
+     */
+    createRouteLayer() {
+      const rl = new VectorLayer({
+        name: "route_layer",
+        source: new VectorSource(),
+      });
+
+      rl.setZIndex(1);
+      rl.set("name", "route_layer");
+      
+      return rl;
+    }
   },
 });
