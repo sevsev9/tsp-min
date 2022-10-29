@@ -67,7 +67,8 @@
             <template v-slot:body-cell-duration="props">
               <q-td :props="props">
                 <q-item>
-                  <q-item-label>{{ new Date(props.row.data.duration * 1000).toISOString().substring(11, 19) }}</q-item-label>
+                  <q-item-label>{{ new Date(props.row.data.duration * 1000).toISOString().substring(11, 19) }}
+                  </q-item-label>
                 </q-item>
               </q-td>
             </template>
@@ -98,16 +99,41 @@
           - Live Calculation Display
       -->
 
-      <!-- This button calculates all routes between each city in the model list. -->
-      <q-btn
-        :label="`Calculate ${current_routes.length > 0 ? current_routes.length : ''} Route${(current_routes.length === 1) ? '' : 's'}`"
-        icon="route" color="primary" @click="calculateRoutes" style="margin: auto" />
+      <div>
+        <!-- This button calculates all routes between each city in the model list. -->
+        <q-btn
+          :label="`Calculate ${current_routes.length > 0 ? current_routes.length : ''} Route${(current_routes.length === 1) ? '' : 's'}`"
+          icon="route" color="primary" @click="calculateRoutes" style="margin: auto" />
+      </div>
 
-      <!-- Loading Dialog for route fetching from server -->
-      <q-dialog v-model="loading.show" persistent style="width: 50vh; margin: auto; height: 20vh">
-        <q-card>
-          <q-bar>
-            <!-- 
+      <div>
+        <!-- This select handles the algorithm selection and solution calculation -->
+        <q-select filled bottom-slots v-model="selected_algorithm" label="Algorithm" dense options-dense
+          :options="algorithm_options">
+          <template v-slot:before>
+            <q-avatar>
+              <q-icon name="query_stats" />
+            </q-avatar>
+          </template>
+
+          <template v-slot:hint>
+            Select the algorithm to calculate the solution with.
+          </template>
+
+          <template v-slot:after>
+            <q-btn round dense flat @click="start_calculation" icon="not_started" />
+          </template>
+        </q-select>
+      </div>
+
+
+    </div>
+
+    <!-- Loading Dialog for route fetching from server -->
+    <q-dialog v-model="loading.show" persistent style="width: 50vh; margin: auto; height: 20vh">
+      <q-card>
+        <q-bar>
+          <!-- 
               Show elapsed time, and total processed, time estimaed and total to process.
               
               <q-icon name="network_wifi" />
@@ -117,28 +143,27 @@
 
              -->
 
-            <q-space />
+          <q-space />
 
-            <q-btn dense flat icon="close" v-close-popup>
-              <q-tooltip>Close</q-tooltip>
-            </q-btn>
-          </q-bar>
+          <q-btn dense flat icon="close" v-close-popup>
+            <q-tooltip>Close</q-tooltip>
+          </q-btn>
+        </q-bar>
 
-          <q-card-section>
-            <q-linear-progress size="50px" :value="loading.progress" color="accent" animation-speed="100">
-              <div class="absolute-full flex flex-center">
-                <q-badge color="white" text-color="accent" :label="loading.progress_label" />
-              </div>
-            </q-linear-progress>
-          </q-card-section>
+        <q-card-section>
+          <q-linear-progress size="50px" :value="loading.progress" color="accent" animation-speed="100">
+            <div class="absolute-full flex flex-center">
+              <q-badge color="white" text-color="accent" :label="loading.progress_label" />
+            </div>
+          </q-linear-progress>
+        </q-card-section>
 
-          <q-card-section class="q-pt-none">
-            <!-- display total progress and time estimation here -->
-            <div class="text-h6">Fetching Routes</div>
-          </q-card-section>
-        </q-card>
-      </q-dialog>
-    </div>
+        <q-card-section class="q-pt-none">
+          <!-- display total progress and time estimation here -->
+          <div class="text-h6">Fetching Routes</div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -203,8 +228,7 @@ export default {
           sortable: true
         },
         { name: 'distance', label: 'Distance', align: 'right', field: 'data.distance', sortable: true },
-        { name: 'duration', label: 'Duration', align: 'right', field: 'data.duration', sortable: true },
-        { name: 'cost', label: 'Cost', align: 'right', field: 'data.cost', sortable: true }
+        { name: 'duration', label: 'Duration', align: 'right', field: 'data.duration', sortable: true }
       ],
 
       // the current selected city
@@ -212,6 +236,11 @@ export default {
 
       // all the routes that are currently highlited (will be used in combination with the selected_city)
       highlighted_routes: ref([]),
+
+      algorithm_options: [
+        'Brute Force', 'Dijkstra', 'A*', 'BFS', 'DFS'
+      ],
+      selected_algorithm: ref('Brute Force'),
     }
   },
   methods: {
@@ -256,9 +285,34 @@ export default {
       this.loading.show = false;
       this.loading.progress = 0;
     },
-    showRouteDetails(route) {
-      console.log(route);
-    },
+    start_calculation() {
+      // check if the selected algorithm is valid
+      if (this.algorithm_options.indexOf(this.selected_algorithm) === -1) {
+        this.$q.notify({
+          title: 'Error',
+          message: 'Please select a valid algorithm.',
+          icon: "error",
+          position: "top"
+        });
+
+        return;
+      }
+
+      const algo = this.selected_algorithm.toLowerCase();
+
+      if (algo === 'brute force') {
+        console.log('brute forcing solution')
+
+      } else {
+        this.$q.notify({
+          title: 'Error',
+          message: 'The selected algorithm is not yet implemented.',
+          icon: "error",
+          position: "top"
+        });
+      }
+
+    }
   },
   async mounted() {
     await this.store.fetchCities(this.$q.notify);
@@ -370,5 +424,7 @@ export default {
 .toolbar {
   grid-area: toolbar;
   padding: 1em;
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
 }
 </style>
