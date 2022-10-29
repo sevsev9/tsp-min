@@ -31,6 +31,61 @@
         </template>
       </q-select>
 
+      <q-card v-if="selected_city">
+
+        <q-card-section>
+          <q-item-label>{{ selected_city.name }}</q-item-label>
+          <q-item-label caption>{{ selected_city.admin_name }}</q-item-label>
+          <q-item-label caption>{{ selected_city.lat + " | " + selected_city.lng }}</q-item-label>
+        </q-card-section>
+        <!-- This table displays all outgoing routes -->
+
+        <q-card-section>
+          <q-table dense virtual-scroll :rows-per-page-options="[0]" :rows="highlighted_routes" :columns="cols"
+            row-key="from">
+            <template v-slot:body-cell-distance="props">
+              <q-td :props="props">
+                <q-item>
+                  <q-item-label>{{ (props.row.data.distance / 1000).toFixed(2) + " km" }}</q-item-label>
+                </q-item>
+              </q-td>
+            </template>
+            <template v-slot:body-cell-to="props">
+              <q-td :props="props">
+                <q-item>
+                  <q-item-label>{{ props.row.to }}</q-item-label>
+                </q-item>
+              </q-td>
+            </template>
+            <template v-slot:body-cell-from="props">
+              <q-td :props="props">
+                <q-item>
+                  <q-item-label>{{ props.row.from }}</q-item-label>
+                </q-item>
+              </q-td>
+            </template>
+            <template v-slot:body-cell-duration="props">
+              <q-td :props="props">
+                <q-item>
+                  <q-item-label>{{ new Date(props.row.data.duration * 1000).toISOString().substring(11, 19) }}</q-item-label>
+                </q-item>
+              </q-td>
+            </template>
+          </q-table>
+        </q-card-section>
+      </q-card>
+
+      <q-card v-else>
+        <q-item>
+          <q-item-section>
+            <q-item-label>
+              <q-icon name="info" />
+              Select a city to see its details
+            </q-item-label>
+          </q-item-section>
+        </q-item>
+      </q-card>
+
     </div>
     <div class="toolbar">
       <!-- This section contains all the functionality for route calculation.
@@ -49,7 +104,6 @@
         icon="route" color="primary" @click="calculateRoutes" style="margin: auto" />
 
       <!-- Loading Dialog for route fetching from server -->
-
       <q-dialog v-model="loading.show" persistent style="width: 50vh; margin: auto; height: 20vh">
         <q-card>
           <q-bar>
@@ -129,7 +183,35 @@ export default {
             return v.label.toLowerCase().indexOf(needle) > -1 || v.value.admin_name.toLowerCase().indexOf(needle) > -1
           })
         })
-      }
+      },
+
+      // @TODO: Left off here, finish table cols
+      cols: [
+
+        {
+          name: 'from',
+          label: 'Origin City',
+          align: 'left',
+          field: 'from',
+          sortable: true
+        },
+        {
+          name: 'to',
+          label: 'Destination City',
+          align: 'left',
+          field: 'to',
+          sortable: true
+        },
+        { name: 'distance', label: 'Distance', align: 'right', field: 'data.distance', sortable: true },
+        { name: 'duration', label: 'Duration', align: 'right', field: 'data.duration', sortable: true },
+        { name: 'cost', label: 'Cost', align: 'right', field: 'data.cost', sortable: true }
+      ],
+
+      // the current selected city
+      selected_city: ref(null),
+
+      // all the routes that are currently highlited (will be used in combination with the selected_city)
+      highlighted_routes: ref([]),
     }
   },
   methods: {
@@ -152,16 +234,14 @@ export default {
           }
         );
 
+        // show the loading dialog
         this.loading.show = false;
-
-        // @debug
-        console.log(routes);
 
         // set current routes
         this.current_routes = routes;
 
         // render the calculated routes
-        this.store.drawRoutes(routes.map(e => e.route));
+        this.store.drawRoutes(routes);
       } catch (e) {
         this.loading.show = false;
         this.$q.notify({
@@ -175,7 +255,10 @@ export default {
     hideLoadingDialog() {
       this.loading.show = false;
       this.loading.progress = 0;
-    }
+    },
+    showRouteDetails(route) {
+      console.log(route);
+    },
   },
   async mounted() {
     await this.store.fetchCities(this.$q.notify);
@@ -207,7 +290,44 @@ export default {
               f.set("selected", false);
             }
           } else {
-            console.log('city handling coming soon...', f.get('city'));
+            if (!f.get("selected")) {
+              f.set("selected", true);
+
+              this.selected_city = f.get('city');
+
+              // highlight all routes that are connected to this city
+              this.highlighted_routes = this.current_routes.filter(e => e.from === this.selected_city.city || e.to === this.selected_city.city);
+
+              // set all routes to selected
+              this.store.map.getLayers().forEach(layer => {
+                if (layer.get('name') === 'route_layer') {
+                  layer.getSource().forEachFeature(f => {
+                    if (f.get('route') && (f.get('route').from === this.selected_city.city || f.get('route').to === this.selected_city.city)) {
+                      f.setStyle(this.store.selectedStyle);
+                    }
+                  });
+                }
+              });
+
+
+            } else {
+
+              // set all routes to unselected
+              this.store.map.getLayers().forEach(layer => {
+                if (layer.get('name') === 'route_layer') {
+                  layer.getSource().forEachFeature(f => {
+                    if (f.get('route') && (f.get('route').from === this.selected_city.city || f.get('route').to === this.selected_city.city)) {
+                      f.setStyle(this.store.routeStyle);
+                    }
+                  });
+                }
+              });
+
+              // clear highlited routes
+              this.highlighted_routes = [];
+
+              f.set("selected", false);
+            }
           }
         }
       }
@@ -242,6 +362,9 @@ export default {
   grid-area: location_selector;
   padding: 1em;
   border-bottom: 2px solid grey;
+  display: grid;
+  grid-template-rows: 1fr 9fr;
+  gap: 1em;
 }
 
 .toolbar {

@@ -16,7 +16,7 @@ export const useRouteStore = defineStore("routeStore", {
      * @param { Array<{ city: string, lat: string, lng: string, ... }> } cities
      * @param $q The quasar instance
      * @param updateProgress A function that is called to update the progress bar
-     * @returns { Promise<Array<{ from: string, to: string, route: { distance_direct: number, duration: number, ... } }>> } A promise that resolves to an array of routes
+     * @returns { Promise<Array<{ from: string, to: string, data: { distance_direct: number, duration: number, ... } }>> } A promise that resolves to an array of routes
      *
      * @throws { Error } If the route could not be calculated
      * @throws { Error } If the routing server is not reachable
@@ -95,7 +95,7 @@ export const useRouteStore = defineStore("routeStore", {
           routes.push({
             from: from.city,
             to: to.city,
-            route,
+            data: route,
           });
 
           updateProgress(routes.length / amountOfRoutes);
