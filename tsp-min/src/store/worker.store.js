@@ -15,87 +15,61 @@ export const useWorkerStore = defineStore("workerstore", {
 
         worker.onmessage = function (event) {
           if (event.data.type === "new best path") {
-
             // new path from worker
             drawPaths(event.data.path, bestSolContext, "green");
 
             // if the rts flag is set to true, draw the return-to-start path aswell
             if (rtsFlag) {
-              drawPath(
-                event.data.path[0],
-                event.data.path[event.data.path.length - 1],
-                "blue"
-              );
+              // drawPath(
+              //   event.data.path[0],
+              //   event.data.path[event.data.path.length - 1],
+              // );
             }
           } else if (event.data.type === "progress update") {
             event.data.progress;
           } else if (event.data.type === "done") {
-            switch (selectedCostKey) {
-              case "avg_drive_time":
-                bP.innerText =
-                  "Best driven time: " + formatTime(event.data.bestPath.cost);
-                wP.innerText =
-                  "Worst driven time: " + formatTime(event.data.worstPath.cost);
-                break;
-              case "linear_distance":
-                bP.innerText =
-                  "Best linear (flying) distance: " +
-                  formatKilometers(event.data.bestPath.cost);
-                wP.innerText =
-                  "Worst linear (flying) distance: " +
-                  formatKilometers(event.data.worstPath.cost);
-                break;
-              case "driven_distance":
-                bP.innerText =
-                  "Best driving distance: " +
-                  formatMeters(event.data.bestPath.cost);
-                wP.innerText =
-                  "Worst driving distance: " +
-                  formatMeters(event.data.worstPath.cost);
-                break;
-              default:
-                break;
-            }
-
             event.data.bestPath;
             event.data.worstPath;
 
-            event.data.timeTaken;
+            event.data.bestPath.cost; // contains the calculated cost of the best path (total distance or duration, depends on selection)
+            event.data.bestPath.cost; // contains the calculated cost of the worst path (total distance or duration, depends on selection)
+
+            event.data.timeTaken; // contains the time taken for the calculation in milliseconds
 
             worker.terminate();
             worker = undefined; //Reset and "free" worker variable
-            fadeOutStartButton();
           } else if (event.data.type === "new worst path") {
-            drawPaths(event.data.path, worstSolContext, "red");
+            event.data.path; // contains a path array [city1_name, city2_name, city3_name, ...]
+
+            // if the rts flag is set to true, draw the return-to-start path aswell
             if (rtsFlag) {
-              drawPath(
-                event.data.path[0],
-                event.data.path[event.data.path.length - 1],
-                worstSolContext,
-                "orange"
-              );
+              // drawPath(
+              //   event.data.path[0],
+              //   event.data.path[event.data.path.length - 1],
+              // );
             }
           } else if (event.data.type === "new path") {
-            drawPaths(event.data.path, calcContext, "white");
+            // new best path
+            event.data.path; // contains a path array [city1_name, city2_name, city3_name, ...]
+
+            // if the rts flag is set to true, draw the return-to-start path aswell
             if (rtsFlag) {
-              drawPath(
-                event.data.path[0],
-                event.data.path[event.data.path.length - 1],
-                worstSolContext,
-                "purple"
-              );
+              // drawPath(
+              //   event.data.path[0],
+              //   event.data.path[event.data.path.length - 1],
+              //
             }
           }
         };
 
         worker.postMessage({
           command: "start",
-          data: data, /* { from: { name: string }, to: { name: string }, distance: number, duration: number } */
-          labels: labels,
-          dataKey: selectedCostKey, //Pass the cost criteria selection.
-          addReturnDistance: rtsFlag, //If the algorithm should add the return-to-start distance.
-          city: chosenCity, //Optional: If set will only calculate routes from a given origin city.
-          fancy: fancyFlag, //Just calculates without any fancy visualization or storing methods.
+          data: data /* { from: { name: string }, to: { name: string }, distance: number, duration: number } */,
+          labels: labels,   // @TODO: whats that again?
+          dataKey: selectedCostKey, // Pass the cost criteria selection. ("distance" | "duration")
+          addReturnDistance: rtsFlag, // If the algorithm should add the return-to-start distance.
+          city: chosenCity, // Optional: If set will only calculate routes from a given origin city.
+          fancy: fancyFlag, // Just calculates without any fancy visualization or storing methods.
         });
       }
     },
