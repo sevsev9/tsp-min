@@ -34,7 +34,7 @@
       <q-card v-if="selected_city">
 
         <q-card-section>
-          <q-item-label>{{ selected_city.name }}</q-item-label>
+          <q-item-label>{{ selected_city.city }}</q-item-label>
           <q-item-label caption>{{ selected_city.admin_name }}</q-item-label>
           <q-item-label caption>{{ selected_city.lat + " | " + selected_city.lng }}</q-item-label>
         </q-card-section>
@@ -42,7 +42,7 @@
 
         <q-card-section>
           <q-table dense virtual-scroll :rows-per-page-options="[0]" :rows="highlighted_routes" :columns="cols"
-            row-key="from">
+            row-key="to">
             <template v-slot:body-cell-distance="props">
               <q-td :props="props">
                 <q-item>
@@ -102,7 +102,7 @@
       <div>
         <!-- This button calculates all routes between each city in the model list. -->
         <q-btn
-          :label="`Calculate ${current_routes.length > 0 ? current_routes.length : ''} Route${(current_routes.length === 1) ? '' : 's'}`"
+          :label="`Calculate ${selected_model.length > 0 ? triangular(selected_model.length) : ''} Route${(current_routes.length === 1) ? '' : 's'}`"
           icon="route" color="primary" @click="calculateRoutes" style="margin: auto" />
       </div>
 
@@ -169,9 +169,10 @@
 
 <script>
 import MapComponent from './components/map.component.vue';
-import { useMapStore } from "./store";
+import { useMapStore } from "./store/map.store";
 import { computed, ref } from "vue";
 import { useRouteStore } from "./store/route.store";
+
 
 export default {
   components: { MapComponent },
@@ -241,14 +242,23 @@ export default {
         'Brute Force', 'Dijkstra', 'A*', 'BFS', 'DFS'
       ],
       selected_algorithm: ref('Brute Force'),
+
+
+
+      // This will be the content for the table that shows multiple selected routes (or a popup that displays the different routes' data)
+      selected_routes: []
     }
   },
   methods: {
     updateCities(cities) {
       // send update with the cities to the store
-
       this.store.drawPoints(cities);
+
+      if (cities.length === 0) {
+        this.selected_city = null;
+      }
     },
+    triangular(n) { return (n * (n - 1)) / 2 },
     async calculateRoutes() {
       try {
         const routes = await this.routeStore.calculateRoutes(
@@ -263,11 +273,13 @@ export default {
           }
         );
 
-        // show the loading dialog
+        // hide the loading dialog
         this.loading.show = false;
 
         // set current routes
         this.current_routes = routes;
+
+        console.log(`Calculated ${routes.length} routes.`);
 
         // render the calculated routes
         this.store.drawRoutes(routes);
@@ -318,78 +330,60 @@ export default {
     await this.store.fetchCities(this.$q.notify);
     this.city_options = [...this.store.city_options];
 
-    if (!this.store.onClickHandler) {
-      this.store.onClickHandler = (e) => {
-
-        // get an array of features that are at the clicked pixel.
-        const feature = this.store.map.getFeaturesAtPixel(e.pixel);
-
-        /*
-         * @TODO solve multiple problems here:
-         *  - What to do when to click multiple routes?
-         *  - Iterate through routes on multiple click? Show menu? ...
-         *  - For now: always use the first element in the array...
-         *  - If city is clicked, highlight all routes connected to this city?
-         */
-        if (feature.length > 0) {
-          const f = feature[0];
-
-          // check if the feature is a route
-          if (f.get('route')) {
-            if (!f.get("selected")) {
-              f.set("selected", true);
-              f.setStyle(this.store.selectedStyle);
-            } else {
-              f.setStyle(this.store.routeStyle);
-              f.set("selected", false);
-            }
-          } else {
-            if (!f.get("selected")) {
-              f.set("selected", true);
-
-              this.selected_city = f.get('city');
-
-              // highlight all routes that are connected to this city
-              this.highlighted_routes = this.current_routes.filter(e => e.from === this.selected_city.city || e.to === this.selected_city.city);
-
-              // set all routes to selected
-              this.store.map.getLayers().forEach(layer => {
-                if (layer.get('name') === 'route_layer') {
-                  layer.getSource().forEachFeature(f => {
-                    if (f.get('route') && (f.get('route').from === this.selected_city.city || f.get('route').to === this.selected_city.city)) {
-                      f.setStyle(this.store.selectedStyle);
-                    }
-                  });
-                }
-              });
+    this.store.initOnclick((e) => {
 
 
-            } else {
+      // handle selected features
+      if (e.selected.length > 0) {
+        const cities = e.selected.filter(e => e.get("city"));
+        const routes = e.selected.filter(e => e.get("route"));
 
-              // set all routes to unselected
-              this.store.map.getLayers().forEach(layer => {
-                if (layer.get('name') === 'route_layer') {
-                  layer.getSource().forEachFeature(f => {
-                    if (f.get('route') && (f.get('route').from === this.selected_city.city || f.get('route').to === this.selected_city.city)) {
-                      f.setStyle(this.store.routeStyle);
-                    }
-                  });
-                }
-              });
+        // handle selection of cities
+        if (cities.length > 0) {
+          const city = cities[0];
+          this.selected_city = city.get("city");
 
-              // clear highlited routes
-              this.highlighted_routes = [];
+          // highlight all routes that are connected to this city
+          this.highlighted_routes = this.current_routes.filter(e => e.from === this.selected_city.city || e.to === this.selected_city.city);
 
-              f.set("selected", false);
-            }
-          }
+          // set all routes to unselected
+          this.store.setRouteStyle(this.store.selectedStyle, (e) => {
+            return this.highlighted_routes.filter(r => r.from === e.from && r.to === e.to).length > 0;
+          });
         }
-      }
-    } else {
-      this.store.map.un("click", this.store.onClickHandler);
-    }
 
-    this.store.map.on("click", this.store.onClickHandler);
+
+        // handle selection of routes
+        routes.forEach(e => e.setStyle(this.store.selectedStyle))
+      }
+
+      // handle deselected features
+      if (e.deselected.length > 0) {
+        const cities = e.deselected.filter(e => e.get("city"));
+        const routes = e.deselected.filter(e => e.get("route"));
+
+        if (cities.length > 0) {
+          const city = cities[0].get("city").city;
+          this.selected_city = null;
+
+          // set all routes to unselected
+          this.store.setRouteStyle(this.store.routeStyle, (e) => {
+            return e.from === city || e.to === city;
+          });
+        }
+
+
+        routes.forEach(e => e.setStyle(this.store.routeStyle))
+      }
+
+      /*
+       * @TODO solve multiple problems here:
+       *  - What to do when to click multiple routes?
+       *  - Iterate through routes on multiple click? Show menu? ...
+       *  - For now: always use the first element in the array...
+       *  - If city is clicked, highlight all routes connected to this city?
+       */
+    });
   }
 }
 </script>
@@ -402,7 +396,7 @@ export default {
   overflow: hidden;
   display: grid;
   grid-template-rows: 1fr 1fr;
-  grid-template-columns: 8fr 2fr;
+  grid-template-columns: 7fr 3fr;
   grid-template-areas:
     "map location_selector"
     "map toolbar";
