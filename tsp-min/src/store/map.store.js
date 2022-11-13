@@ -7,6 +7,8 @@ import { Style, Circle, Fill, Icon, Stroke } from "ol/style";
 import { Point } from "ol/geom";
 import Feature from "ol/Feature";
 import GeoJSON from "ol/format/GeoJSON";
+import Select from "ol/interaction/Select";
+import { click } from "ol/events/condition";
 
 const icon_url =
   "https://cdn.rawgit.com/openlayers/ol3/master/examples/data/icon.png";
@@ -63,7 +65,8 @@ export const useMapStore = defineStore("mapstore", {
       // fill: new ol.style.Fill()
     }),
 
-    onClickHandler: null,
+    clickInteraction: null,
+    prevClickHandler: null,
   }),
   getters: {
     selected_city: (state) => state._selected_city,
@@ -146,38 +149,41 @@ export const useMapStore = defineStore("mapstore", {
      * @param cities An array of city options. ( {value: {city, lat, lng, ...}, label: city} )
      */
     drawPoints(cities) {
-      if (this.point_layer) {
-        this.map.removeLayer(this.point_layer);
-      }
-
-      this.point_layer = new VectorLayer({
-        target: "point_layer",
-        source: new VectorSource(),
-        style: new Style({
-          /* image: new Circle({
-            radius: 5,
-            fill: new Fill({
-              color: "red"
-            })
-          }) */
-          image: new Icon({
-            anchor: [0.5, 1],
-            src: icon_url,
+      if (!this.point_layer) {
+        this.point_layer = new VectorLayer({
+          target: "point_layer",
+          source: new VectorSource(),
+          style: new Style({
+            /* image: new Circle({
+              radius: 5,
+              fill: new Fill({
+                color: "red"
+              })
+            }) */
+            image: new Icon({
+              anchor: [0.5, 1],
+              src: icon_url,
+            }),
           }),
-        }),
-      });
-
-      for (let i = 0; i < cities.length; i++) {
-        const point = new Point([cities[i].value.lng, cities[i].value.lat]);
-        const feature = new Feature(point);
-        feature.set("city", cities[i].value);
-        this.point_layer.getSource().addFeature(feature);
+        });
+        this.point_layer.setZIndex(2);
+        this.point_layer.set("point_layer", true);
+      } else {
+        this.map.removeLayer(this.point_layer);
+        this.point_layer.getSource().clear();
       }
 
-      this.point_layer.setZIndex(2);
-      this.map.addLayer(this.point_layer);
+      if (cities.length > 0) {
+        for (let i = 0; i < cities.length; i++) {
+          const point = new Point([cities[i].value.lng, cities[i].value.lat]);
+          const feature = new Feature(point);
+          feature.set("city", cities[i].value);
+          this.point_layer.getSource().addFeature(feature);
+        }
 
-      this.adjust_map_zoom();
+        this.map.addLayer(this.point_layer);
+        this.adjust_map_zoom();
+      }
     },
 
     /**
@@ -208,19 +214,8 @@ export const useMapStore = defineStore("mapstore", {
      */
     addRoute(route) {
       const route_feature = this.createRouteFeature(route.data.geometry);
-
-      // remove old route layer
-      if (!this.route_layer) {
-        this.route_layer = this.createRouteLayer();
-      } else {
-        this.map.removeLayer(this.route_layer);
-      }
-
       route_feature.set("route", route);
-
       this.route_layer.getSource().addFeature(route_feature);
-
-      this.map.addLayer(this.route_layer);
     },
 
     /**
@@ -229,12 +224,14 @@ export const useMapStore = defineStore("mapstore", {
      * @returns { [{ ...route, feature: Feature }] } An array of all routes with features.
      */
     drawRoutes(routes) {
-      // remove old route layer
-      if (this.route_layer) {
-        this.map.removeLayer(this.route_layer);
+      console.log(`Drawing ${routes.length} routes.`);
+      // clear route layer
+      if (!this.route_layer) {
+        this.route_layer = this.createRouteLayer();
+        this.map.addLayer(this.route_layer);
+      } else {
+        this.route_layer.getSource().clear();
       }
-
-      this.route_layer = this.createRouteLayer();
 
       for (const route of routes) {
         this.addRoute(route);
@@ -242,20 +239,65 @@ export const useMapStore = defineStore("mapstore", {
 
       return routes;
     },
+    initOnclick(fnc) {
+      if (!fnc) {
+        console.error(
+          "Error setting click handler: Called initOnclick method without function."
+        );
+        return;
+      }
+
+      if (!this.clickInteraction) {
+        this.clickInteraction = new Select({
+          condition: click,
+        });
+        this.map.addInteraction(this.clickInteraction);
+      }
+
+      if (this.prevClickHandler) {
+        this.clickInteraction.un("select", this.prevClickHandler);
+      }
+
+      this.prevClickHandler = fnc;
+      this.clickInteraction.on("select", fnc);
+    },
 
     /**
      * Creates and returns a new route layer.
      */
     createRouteLayer() {
       const rl = new VectorLayer({
-        name: "route_layer",
         source: new VectorSource(),
       });
 
       rl.setZIndex(1);
       rl.set("name", "route_layer");
-      
+
       return rl;
-    }
+    },
+
+    /**
+     * Sets the route style for a given set of routes identified by the filter function.
+     */
+    setRouteStyle(style, filter) {
+      if (!filter || !(typeof filter === "function")) {
+        console.error(
+          "Error setting route style: no valid filter function provided."
+        );
+        return;
+      }
+
+      if (this.route_layer !== null) {
+        this.route_layer.getSource().forEachFeature((f) => {
+          const r = f.get("route");
+
+          if (r) {
+            if (filter(r)) {
+              f.setStyle(style);
+            }
+          }
+        });
+      }
+    },
   },
 });

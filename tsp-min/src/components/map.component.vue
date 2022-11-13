@@ -15,7 +15,7 @@ import OSM from 'ol/source/OSM'
 // good looking buttons!
 import 'ol/ol.css'
 import { useGeographic } from 'ol/proj'
-import { useMapStore } from '@/store'
+import { useMapStore } from '@/store/map.store'
 // import { ATTRIBUTION } from 'ol/source/OSM';
 
 useGeographic();
@@ -59,9 +59,6 @@ export default {
             }),
         });
     },
-    methods: {
-
-    }
 }
 </script>
 
