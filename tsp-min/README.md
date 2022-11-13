@@ -32,3 +32,5 @@ See [Configuration Reference](https://cli.vuejs.org/config/).
 ### Roadmap
  - [ ] Implement custom backend that caches routes and acts on top of the OSRM server.
  - [ ] Implement other Algorithms than simple brute-force (A*, DFS, BFS, ...)
+ - [ ] Add support for custom points on map click. (Add new point/address to list but don't save it?)
+ - [ ] Implement route selection information display and color change
