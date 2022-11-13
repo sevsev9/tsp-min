@@ -6,7 +6,6 @@ export const useRouteStore = defineStore("routeStore", {
     SERVER: "http://localhost:5000",
     NEAREST: "/nearest/v1/driving/",
     ROUTE: "/route/v1/driving/",
-    route_layer: null,
     route_cache: [],
   }),
   getters: {},
@@ -69,12 +68,12 @@ export const useRouteStore = defineStore("routeStore", {
           const from = cities[i];
           const to = cities[j];
 
-          // check if the route from <-> to is already in the routes array
-          const routeExists = routes.some((r) => {
-            return r.from === to.city && r.to === from.city;
-          });
+          //@TODO: Let the user decide if the routes should be handled the same way around or not as the route time might differ in either direction.
 
-          if (routeExists) {
+          // check if the route from <-> to is already in the routes array
+          if (routes.some( r => (
+            (r.from === to.city && r.to === from.city) ||
+            (r.from === from.city  && r.to === to.city)))) {
             continue;
           }
 
@@ -90,7 +89,7 @@ export const useRouteStore = defineStore("routeStore", {
             continue;
           }
 
-          const route = await this.calculateRoute(from, to);
+          const route = await this.getRoute(from, to);
 
           routes.push({
             from: from.city,
@@ -141,7 +140,7 @@ export const useRouteStore = defineStore("routeStore", {
      *
      * @returns {Promise<{distance: number, duration: number, geometry: import("ol/format/GeoJSON").GeoJSONObject, weight: number, weight_name: string}>} A promise that resolves to a route
      */
-    async calculateRoute(from, to) {
+    async getRoute(from, to) {
       const res = await fetch(
         `${this.SERVER}${this.ROUTE}${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson&steps=true`
       ).then((res) => res.json());
